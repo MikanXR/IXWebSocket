@@ -247,7 +247,7 @@ namespace ix
         flags = MSG_NOSIGNAL;
 #endif
 
-        return ::send(_sockfd, buffer, length, flags);
+        return ::send(_sockfd, buffer, (int)length, flags);
     }
 
     ssize_t Socket::send(const std::string& buffer)
@@ -262,7 +262,7 @@ namespace ix
         flags = MSG_NOSIGNAL;
 #endif
 
-        return ::recv(_sockfd, (char*) buffer, length, flags);
+        return ::recv(_sockfd, (char*) buffer, (int)length, flags);
     }
 
     int Socket::getErrno()

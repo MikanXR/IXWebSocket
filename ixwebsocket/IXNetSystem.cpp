@@ -153,7 +153,7 @@ namespace ix
                 }
             }
 
-            DWORD n = WSAWaitForMultipleEvents(handles.size(), handles.data(), FALSE, timeout != -1 ? static_cast<DWORD>(timeout) : WSA_INFINITE, FALSE);
+            DWORD n = WSAWaitForMultipleEvents((DWORD)handles.size(), handles.data(), FALSE, timeout != -1 ? static_cast<DWORD>(timeout) : WSA_INFINITE, FALSE);
 
             if (n == WSA_WAIT_FAILED) return SOCKET_ERROR;
             if (n == WSA_WAIT_TIMEOUT) return 0;

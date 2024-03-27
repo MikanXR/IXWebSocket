@@ -47,7 +47,7 @@ namespace ix
         // block us for too long
         SocketConnect::configure(fd);
 
-        int res = ::connect(fd, address->ai_addr, address->ai_addrlen);
+        int res = ::connect(fd, address->ai_addr, (int)address->ai_addrlen);
 
         if (res == -1 && !Socket::isWaitNeeded())
         {

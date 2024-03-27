@@ -18,6 +18,7 @@
 #include <ixwebsocket/IXSocket.h>
 #include <random>
 #include <string>
+#include <tchar.h>
 
 namespace ix
 {
@@ -47,7 +48,7 @@ namespace ix
         struct sockaddr_in server; // server address information
         server.sin_family = AF_INET;
         server.sin_port = htons(0);
-        server.sin_addr.s_addr = inet_addr("127.0.0.1");
+        InetPton(AF_INET, _T("127.0.0.1"), &server.sin_addr.s_addr);
 
         if (bind(sockfd, (struct sockaddr*) &server, sizeof(server)) < 0)
         {

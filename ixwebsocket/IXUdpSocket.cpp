@@ -110,7 +110,7 @@ namespace ix
     ssize_t UdpSocket::sendto(const std::string& buffer)
     {
         return (ssize_t)::sendto(
-            _sockfd, buffer.data(), buffer.size(), 0, (struct sockaddr*) &_server, sizeof(_server));
+            _sockfd, buffer.data(), (int)buffer.size(), 0, (struct sockaddr*) &_server, sizeof(_server));
     }
 
     ssize_t UdpSocket::recvfrom(char* buffer, size_t length)
@@ -121,6 +121,6 @@ namespace ix
         socklen_t addressLen = (socklen_t) sizeof(_server);
 #endif
         return (ssize_t)::recvfrom(
-            _sockfd, buffer, length, 0, (struct sockaddr*) &_server, &addressLen);
+            _sockfd, buffer, (int)length, 0, (struct sockaddr*) &_server, &addressLen);
     }
 } // namespace ix
