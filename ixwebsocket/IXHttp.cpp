@@ -9,6 +9,7 @@
 #include "IXCancellationRequest.h"
 #include "IXGzipCodec.h"
 #include "IXSocket.h"
+#include <limits>
 #include <sstream>
 #include <vector>
 
@@ -140,8 +141,9 @@ namespace ix
                 long val = std::strtol(p, &p_end, 10);
                 if (p_end == p            // invalid argument
                     || errno == ERANGE    // out of range
-                    || val < std::numeric_limits<int>::min()
-                    || val > std::numeric_limits<int>::max()) {
+                    // https://stackoverflow.com/questions/11544073/how-do-i-deal-with-the-max-macro-in-windows-h-colliding-with-max-in-std
+                    || val < (std::numeric_limits<int>::min)()
+                    || val > (std::numeric_limits<int>::max)()) {
                     return std::make_tuple(
                         false, "Error parsing HTTP Header 'Content-Length'", httpRequest);
                 }
