@@ -265,7 +265,7 @@ namespace ix
         }
 
         WebSocketInitResult status =
-            _ws.connectToSocket(std::move(socket), timeoutSecs, enablePerMessageDeflate, request);
+            _ws.connectToSocket(std::move(socket), _extraHeaders, timeoutSecs, enablePerMessageDeflate, request);
         if (!status.success)
         {
             return status;

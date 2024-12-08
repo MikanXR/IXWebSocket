@@ -170,6 +170,7 @@ namespace ix
 
     // Server
     WebSocketInitResult WebSocketTransport::connectToSocket(std::unique_ptr<Socket> socket,
+                                                            const WebSocketHttpHeaders& extraHeaders,
                                                             int timeoutSecs,
                                                             bool enablePerMessageDeflate,
                                                             HttpRequestPtr request)
@@ -190,7 +191,7 @@ namespace ix
                                               _enablePerMessageDeflate);
 
         auto result =
-            webSocketHandshake.serverHandshake(timeoutSecs, enablePerMessageDeflate, request);
+            webSocketHandshake.serverHandshake(extraHeaders, timeoutSecs, enablePerMessageDeflate, request);
         if (result.success)
         {
             setReadyState(ReadyState::OPEN);

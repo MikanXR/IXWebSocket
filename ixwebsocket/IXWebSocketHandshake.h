@@ -37,7 +37,8 @@ namespace ix
                                             int port,
                                             int timeoutSecs);
 
-        WebSocketInitResult serverHandshake(int timeoutSecs,
+        WebSocketInitResult serverHandshake(const WebSocketHttpHeaders& extraHeaders,
+                                            int timeoutSecs,
                                             bool enablePerMessageDeflate,
                                             HttpRequestPtr request = nullptr);
 

@@ -246,7 +246,8 @@ namespace ix
         return WebSocketInitResult(true, status, "", headers, path);
     }
 
-    WebSocketInitResult WebSocketHandshake::serverHandshake(int timeoutSecs,
+    WebSocketInitResult WebSocketHandshake::serverHandshake(const WebSocketHttpHeaders& extraHeaders,
+                                                            int timeoutSecs,
                                                             bool enablePerMessageDeflate,
                                                             HttpRequestPtr request)
     {
@@ -361,6 +362,12 @@ namespace ix
         ss << "Upgrade: websocket\r\n";
         ss << "Connection: Upgrade\r\n";
         ss << "Server: " << userAgent() << "\r\n";
+
+        // Append extra server headers
+        for (auto& it : extraHeaders)
+		{
+			ss << it.first << ": " << it.second << "\r\n";
+		}
 
         // Parse the client headers. Does it support deflate ?
         std::string header = headers["sec-websocket-extensions"];

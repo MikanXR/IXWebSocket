@@ -86,6 +86,7 @@ namespace ix
 
         // Server
         WebSocketInitResult connectToSocket(std::unique_ptr<Socket> socket,
+                                            const WebSocketHttpHeaders& _extraHeaders,
                                             int timeoutSecs,
                                             bool enablePerMessageDeflate,
                                             HttpRequestPtr request = nullptr);
