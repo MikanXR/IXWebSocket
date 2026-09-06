@@ -179,7 +179,17 @@ namespace ix
 
         // Server should not mask the data it sends to the client
         _useMask = false;
-        _blockingSend = true;
+
+        // Deliberate divergence from upstream: leave the send non-blocking on the server side.
+        // With _blockingSend, sendData() runs flushSendBuffer() on the *caller's* thread, and that
+        // loop polls this socket through the same SelectInterrupt the connection's own poll thread
+        // waits on. A multi-megabyte response (the depth proxy mesh returned by
+        // GetModelStencilRenderGeometry) keeps the caller inside that loop long enough to race the
+        // poll thread, after which the connection never delivers another inbound frame while still
+        // happily writing outbound ones, so the client's requests hang forever.
+        // The trade-off is that a client which stops reading no longer applies backpressure here
+        // and _txbuf can grow instead.
+        _blockingSend = false;
 
         _socket = std::move(socket);
         _perMessageDeflate = ix::make_unique<WebSocketPerMessageDeflate>();
