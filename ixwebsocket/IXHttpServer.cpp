@@ -6,10 +6,12 @@
 
 #include "IXHttpServer.h"
 
+#include "IXCancellationRequest.h"
 #include "IXGzipCodec.h"
 #include "IXNetSystem.h"
 #include "IXSocketConnect.h"
 #include "IXUserAgent.h"
+#include <atomic>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
@@ -88,27 +90,74 @@ namespace ix
         _onConnectionCallback = callback;
     }
 
+    void HttpServer::setOnRequestHeadersCallback(const OnRequestHeadersCallback& callback)
+    {
+        _onRequestHeadersCallback = callback;
+    }
+
     void HttpServer::handleConnection(std::unique_ptr<Socket> socket,
                                       std::shared_ptr<ConnectionState> connectionState)
     {
-        auto ret = Http::parseRequest(socket, _timeoutSecs);
-        // FIXME: handle errors in parseRequest
+        // The request line, the headers, and an in-memory body share one deadline. A
+        // body streamed to a file is paced by its own idle timeout instead, so only an
+        // explicit cancellation reaches it from here.
+        std::atomic<bool> requestInitCancellation(false);
+        auto deadline = makeCancellationRequestWithTimeout(_timeoutSecs, requestInitCancellation);
+        auto explicitCancel = [&requestInitCancellation]() -> bool {
+            return requestInitCancellation;
+        };
 
-        if (std::get<0>(ret))
+        uint64_t contentLength = 0;
+        auto head = Http::parseRequestHead(socket, contentLength, deadline);
+        if (!std::get<0>(head))
         {
-            auto request = std::get<2>(ret);
-            std::shared_ptr<ix::HttpResponse> response;
-            if (request->headers["Upgrade"] == "websocket")
+            logError("Cannot read request: " + std::get<1>(head));
+            connectionState->setTerminated();
+            return;
+        }
+
+        auto request = std::get<2>(head);
+        HttpBodyPolicy policy;
+        if (_onRequestHeadersCallback && request->headers["Upgrade"] != "websocket")
+        {
+            policy = _onRequestHeadersCallback(request);
+        }
+
+        std::pair<bool, std::string> bodyResult;
+        if (!policy.streamToFilePath.empty() || policy.discardBody)
+        {
+            bodyResult = Http::streamRequestBody(socket,
+                                                 request,
+                                                 contentLength,
+                                                 policy.discardBody ? std::string()
+                                                                    : policy.streamToFilePath,
+                                                 policy.idleTimeoutSecs,
+                                                 policy.idleTimeoutSecs > 0 ? explicitCancel
+                                                                            : deadline);
+        }
+        else
+        {
+            bodyResult = Http::readRequestBody(socket, request, contentLength, deadline);
+        }
+
+        if (!bodyResult.first)
+        {
+            logError("Cannot read request body: " + bodyResult.second);
+            connectionState->setTerminated();
+            return;
+        }
+
+        if (request->headers["Upgrade"] == "websocket")
+        {
+            WebSocketServer::handleUpgrade(std::move(socket), connectionState, request);
+        }
+        else
+        {
+            auto response = policy.earlyResponse ? policy.earlyResponse
+                                                 : _onConnectionCallback(request, connectionState);
+            if (!Http::sendResponse(response, socket))
             {
-                WebSocketServer::handleUpgrade(std::move(socket), connectionState, request);
-            }
-            else
-            {
-                auto response = _onConnectionCallback(request, connectionState);
-                if (!Http::sendResponse(response, socket))
-                {
-                    logError("Cannot send response");
-                }
+                logError("Cannot send response");
             }
         }
         connectionState->setTerminated();

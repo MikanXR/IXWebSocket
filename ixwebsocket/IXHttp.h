@@ -103,6 +103,8 @@ namespace ix
         std::string version;
         std::string body;
         WebSocketHttpHeaders headers;
+        // Set instead of body when the server streamed the body to a file
+        std::string bodyFilePath;
 
         HttpRequest(const std::string& u,
                     const std::string& m,
@@ -125,6 +127,34 @@ namespace ix
     public:
         static std::tuple<bool, std::string, HttpRequestPtr> parseRequest(
             std::unique_ptr<Socket>& socket, int timeoutSecs);
+
+        // Reads the request line and the headers, leaving the body on the socket.
+        // outContentLength is the body length the headers declare, 0 when none.
+        static std::tuple<bool, std::string, HttpRequestPtr> parseRequestHead(
+            std::unique_ptr<Socket>& socket,
+            uint64_t& outContentLength,
+            const CancellationRequest& isCancellationRequested);
+
+        // Reads the body into request->body, decoding a gzip body
+        static std::pair<bool, std::string> readRequestBody(
+            std::unique_ptr<Socket>& socket,
+            HttpRequestPtr request,
+            uint64_t contentLength,
+            const CancellationRequest& isCancellationRequested);
+
+        // Writes the body to filePath in chunks as it arrives, setting
+        // request->bodyFilePath, or reads and drops it when filePath is empty. The
+        // connection is cut when no byte arrives for idleTimeoutSecs (0 for no
+        // idle limit) or the cancellation request fires. A partial file is removed
+        // on failure.
+        static std::pair<bool, std::string> streamRequestBody(
+            std::unique_ptr<Socket>& socket,
+            HttpRequestPtr request,
+            uint64_t contentLength,
+            const std::string& filePath,
+            int idleTimeoutSecs,
+            const CancellationRequest& isCancellationRequested);
+
         static bool sendResponse(HttpResponsePtr response, std::unique_ptr<Socket>& socket);
 
         static std::pair<std::string, int> parseStatusLine(const std::string& line);
