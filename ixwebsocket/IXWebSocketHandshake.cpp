@@ -246,6 +246,31 @@ namespace ix
         return WebSocketInitResult(true, status, "", headers, path);
     }
 
+    // Is the value among the comma separated sub-protocols the client offered?
+    static bool isSubProtocolOffered(const WebSocketHttpHeaders& requestHeaders,
+                                     const std::string& subProtocol)
+    {
+        auto it = requestHeaders.find("sec-websocket-protocol");
+        if (it == requestHeaders.end())
+        {
+            return false;
+        }
+
+        std::stringstream offers(it->second);
+        std::string offer;
+        while (std::getline(offers, offer, ','))
+        {
+            const auto first = offer.find_first_not_of(" \t");
+            const auto last = offer.find_last_not_of(" \t");
+            if (first != std::string::npos && offer.substr(first, last - first + 1) == subProtocol)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     WebSocketInitResult WebSocketHandshake::serverHandshake(const WebSocketHttpHeaders& extraHeaders,
                                                             int timeoutSecs,
                                                             bool enablePerMessageDeflate,
@@ -363,11 +388,20 @@ namespace ix
         ss << "Connection: Upgrade\r\n";
         ss << "Server: " << userAgent() << "\r\n";
 
-        // Append extra server headers
+        // Append extra server headers. A sub-protocol is the exception: RFC 6455 has a client
+        // fail the handshake when the server names a sub-protocol it did not offer, so the
+        // server's value is echoed only when it is among the client's offers, and a client
+        // that offered none gets none.
         for (auto& it : extraHeaders)
-		{
-			ss << it.first << ": " << it.second << "\r\n";
-		}
+        {
+            if (insensitiveStringCompare(it.first, "Sec-WebSocket-Protocol") &&
+                !isSubProtocolOffered(headers, it.second))
+            {
+                continue;
+            }
+
+            ss << it.first << ": " << it.second << "\r\n";
+        }
 
         // Parse the client headers. Does it support deflate ?
         std::string header = headers["sec-websocket-extensions"];
